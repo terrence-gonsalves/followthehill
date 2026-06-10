@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts import ── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── CSS custom properties ── */
+:root {
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-jetbrains: 'JetBrains Mono', Menlo, monospace;
+
+  /* Brand */
+  --hill-ink:    #1A1C1E;
+  --hill-slate:  #4A5568;
+  --hill-paper:  #F8F7F4;
+  --hill-rule:   #E2DDD5;
+  --hill-red:    #C0392B;
+  --hill-blue:   #1A3A5C;
+  --hill-orange: #C0550A;
+  --hill-teal:   #16A085;
+}
+
+/* ── Base ── */
+@layer base {
+  html {
+    font-family: var(--font-inter);
+    background-color: var(--hill-paper);
+    color: var(--hill-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-playfair);
+    color: var(--hill-ink);
+  }
+
+  /* Monospaced elements for numbers and data */
+  .font-data {
+    font-family: var(--font-jetbrains);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The signature red rule — appears under all major headings */
+  .hill-rule::after {
+    content: '';
+    display: block;
+    width: 2.5rem;
+    height: 3px;
+    background-color: var(--hill-red);
+    margin-top: 0.5rem;
+  }
+
+  .hill-rule-full::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 1px;
+    background-color: var(--hill-rule);
+    margin-top: 1rem;
+  }
+
+  /* Focus styles */
+  *:focus-visible {
+    outline: 3px solid var(--hill-red);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--hill-paper); }
+  ::-webkit-scrollbar-thumb { background: var(--hill-rule); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--hill-slate); }
+}
+
+/* ── Utility classes ── */
+@layer utilities {
+  .text-ink    { color: var(--hill-ink); }
+  .text-slate  { color: var(--hill-slate); }
+  .text-red    { color: var(--hill-red); }
+  .bg-paper    { background-color: var(--hill-paper); }
+  .border-rule { border-color: var(--hill-rule); }
+
+  /* Vote decision colours */
+  .vote-yea    { @apply text-green-700 bg-green-50 border-green-200; }
+  .vote-nay    { @apply text-red-700 bg-red-50 border-red-200; }
+  .vote-paired { @apply text-amber-700 bg-amber-50 border-amber-200; }
+  .vote-absent { @apply text-gray-500 bg-gray-50 border-gray-200; }
+
+  /* Result badges */
+  .result-passed { @apply text-green-800 bg-green-100; }
+  .result-failed { @apply text-red-800 bg-red-100; }
+}
