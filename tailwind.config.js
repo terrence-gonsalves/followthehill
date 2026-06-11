@@ -7,7 +7,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // FollowTheHill brand palette
+        // Follow The Hill brand palette
         hill: {
           ink:    "#1A1C1E",   // Primary text, headings
           slate:  "#4A5568",   // Secondary text, metadata

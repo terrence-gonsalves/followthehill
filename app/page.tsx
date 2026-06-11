@@ -3,7 +3,7 @@ export default function HomePage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-hill-hero">
       <div className="text-center max-w-2xl px-6">
         <h1 className="font-display text-display-xl text-hill-ink mb-4">
-          FollowTheHill
+          Follow The Hill
         </h1>
         <div className="w-10 h-[3px] bg-hill-red mx-auto mb-6" />
         <p className="font-sans text-xl text-hill-slate">

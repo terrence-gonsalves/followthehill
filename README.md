@@ -1,4 +1,4 @@
-# FollowTheHill
+# Follow The Hill
 
 > Follow the money. Follow the votes. Follow the Hill.
 

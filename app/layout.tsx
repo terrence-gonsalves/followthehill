@@ -3,7 +3,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: {
-    default: "FollowTheHill — Canadian Political Transparency",
+    default: "Follow The Hill — Canadian Political Transparency",
     template: "%s | FollowTheHill",
   },
   description:
@@ -17,16 +17,16 @@ export const metadata: Metadata = {
     "Elections Canada",
   ],
   openGraph: {
-    title: "FollowTheHill",
+    title: "Follow The Hill",
     description: "Follow the money. Follow the votes. Follow the Hill.",
     url: "https://followthehill.ca",
-    siteName: "FollowTheHill",
+    siteName: "Follow The Hill",
     locale: "en_CA",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "FollowTheHill",
+    title: "Follow The Hill",
     description: "Follow the money. Follow the votes. Follow the Hill.",
   },
   metadataBase: new URL(
