@@ -1,119 +1,105 @@
 /**
  * seed-votes.ts
- * Seeds votes + member_votes from openparliament.ca
- * WARNING: This takes a while for historical data — run once per parliament.
- *
+ * Seeds votes table from openparliament.ca (full history)
+ * Note: member_votes (individual ballots) are not seeded in MVP.
  * Usage: pnpm seed:votes
  */
-import { createClient } from "@supabase/supabase-js"
-import { openParliament } from "../lib/openparliament/client"
-import type { Database, Vote, MemberVote } from "../types"
+import { createClient } from "@supabase/supabase-js";
+import * as path from "path";
+import * as dotenv from "dotenv";
 
-const supabase = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Rate limit helper — be polite to openparliament.ca
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const BASE_URL = "https://api.openparliament.ca";
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchVotes(limit: number, offset: number) {
+    const url = `${BASE_URL}/votes/?format=json&limit=${limit}&offset=${offset}`;
+    const res = await fetch(url, {
+        headers: {
+            "Accept": "application/json",
+            "User-Agent": "FollowTheHill/1.0 (followthehill.ca)",
+        },
+    });
+
+    if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
+
+    return res.json();
+}
+
+function parseBillNumber(billUrl: string | null | undefined): string | null {
+    if (!billUrl) return null;
+
+    const parts = billUrl.split("/").filter(Boolean);
+
+    return parts[parts.length - 1] ?? null;
+}
 
 async function seedVotes() {
-  console.log("🗳️  Seeding votes from openparliament.ca...")
-
-  // 1. Get all member slugs → id map
-  const { data: members } = await supabase
-    .from("members")
-    .select("id, slug")
-  const memberMap = new Map(members?.map((m) => [m.slug, m.id]) ?? [])
-  console.log(`  ℹ️  Loaded ${memberMap.size} members`)
-
-  let offset = 0
-  const limit = 50
-  let totalVotes = 0
-
-  while (true) {
-    const response = await openParliament.getVotes(undefined, undefined, limit, offset)
-    const { objects, meta } = response
-
-    if (objects.length === 0) break
-
-    // Insert votes
-    const voteRows: Omit<Vote, "id" | "created_at">[] = objects.map((v) => ({
-      vote_number:         v.number,
-      parliament_num:      v.parliament_number,
-      session_num:         v.session_number,
-      date:                v.date,
-      bill_number:         v.bill?.number ?? null,
-      description:         v.description?.en ?? "",
-      result:              v.result?.toLowerCase().includes("agreed") ? "passed" : "failed",
-      yeas:                v.yea_total,
-      nays:                v.nay_total,
-      paired:              v.paired_total,
-      open_parliament_url: `https://openparliament.ca${v.url}`,
-    }))
-
-    const { data: insertedVotes, error: voteError } = await supabase
-      .from("votes")
-      .upsert(voteRows, { onConflict: "vote_number,parliament_num,session_num" })
-      .select("id, vote_number, parliament_num, session_num")
-
-    if (voteError) {
-      console.error("❌ Vote insert error:", voteError.message)
-      continue
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.error("❌ Missing Supabase environment variables in .env.local");
+        process.exit(1);
     }
 
-    totalVotes += insertedVotes?.length ?? 0
+    console.log("🗳️  Seeding votes from openparliament.ca (full history)...");
+    console.log("   Individual MP ballots will be added in a future step.\n");
 
-    // Fetch ballots for each vote and insert member_votes
-    for (const vote of objects) {
-      const dbVote = insertedVotes?.find(
-        (v) =>
-          v.vote_number === vote.number &&
-          v.parliament_num === vote.parliament_number &&
-          v.session_num === vote.session_number
-      )
-      if (!dbVote) continue
+    let offset = 0;
+    const limit = 50;
+    let totalVotes = 0;
+    let hasMore = true;
 
-      await sleep(200) // polite delay
-      const { objects: ballots } = await openParliament.getVoteBallots(
-        vote.parliament_number,
-        vote.session_number,
-        vote.number
-      )
+    while (hasMore) {
+        const response   = await fetchVotes(limit, offset);
+        const objects    = response.objects   ?? [];
+        const pagination = response.pagination ?? {};
 
-      const ballotRows: Omit<MemberVote, "id" | "created_at">[] = ballots
-        .map((b) => {
-          const slug = b.politician_url.replace("/politicians/", "").replace("/", "")
-          const memberId = memberMap.get(slug)
-          if (!memberId) return null
+        if (objects.length === 0) break;
 
-          const decision =
-            b.ballot === "Y" ? "yea" :
-            b.ballot === "N" ? "nay" :
-            b.ballot === "P" ? "paired" : "absent"
+        const voteRows = objects.map((v: any) => {
+            const [parliamentNum, sessionNum] = (v.session ?? "45-1").split("-").map(Number);
 
-          return { member_id: memberId, vote_id: dbVote.id, decision }
-        })
-        .filter((r): r is Omit<MemberVote, "id" | "created_at"> => r !== null)
+            return {
+                vote_number:         v.number,
+                parliament_num:      parliamentNum,
+                session_num:         sessionNum,
+                date:                v.date,
+                bill_number:         parseBillNumber(v.bill_url),
+                description:         v.description?.en ?? v.description ?? "",
+                result:              v.result?.toLowerCase() === "passed" ? "passed" : "failed",
+                yeas:                v.yea_total    ?? 0,
+                nays:                v.nay_total    ?? 0,
+                paired:              v.paired_total ?? 0,
+                open_parliament_url: `https://openparliament.ca${v.url}`,
+            };
+        });
 
-      if (ballotRows.length > 0) {
-        await supabase
-          .from("member_votes")
-          .upsert(ballotRows, { onConflict: "member_id,vote_id" })
-      }
+        const { data: insertedVotes, error: voteError } = await supabase
+            .from("votes")
+            .upsert(voteRows, { onConflict: "vote_number,parliament_num,session_num" })
+            .select("id");
+
+        if (voteError) {
+            console.error(`  ⚠ Vote insert error at offset ${offset}:`, voteError.message);
+        } else {
+            totalVotes += insertedVotes?.length ?? 0;
+            console.log(`  ✓ Offset ${offset}: ${insertedVotes?.length ?? 0} votes | ${totalVotes.toLocaleString()} total`);
+        }
+
+        hasMore = !!pagination.next_url;
+        offset += limit;
+        await sleep(300);
     }
 
-    console.log(`  ✓ Offset ${offset}: seeded ${objects.length} votes`)
-
-    if (!meta.next) break
-    offset += limit
-    await sleep(500) // polite delay between pages
-  }
-
-  console.log(`\n✅ Done — total votes seeded: ${totalVotes}`)
+    console.log(`\n✅ Done! Total votes seeded: ${totalVotes.toLocaleString()}`);
 }
 
 seedVotes().catch((err) => {
-  console.error("Fatal error:", err)
-  process.exit(1)
+    console.error("Fatal error:", err);
+    process.exit(1);
 })
